@@ -45,6 +45,11 @@ jerror_t DEventProcessor_2p1pi1pi0::init(void)
   locTreeBranchRegister.Register_FundamentalArray<Double_t>("beamEnergy", "nPhotonCandidates");
   locTreeBranchRegister.Register_FundamentalArray<Double_t>("beamT", "nPhotonCandidates");
 
+  locTreeBranchRegister.Register_Single<TLorentzVector>("vProton0");
+  locTreeBranchRegister.Register_Single<TLorentzVector>("vProton1");
+  locTreeBranchRegister.Register_Single<TLorentzVector>("vPiMinus");
+  locTreeBranchRegister.Register_Single<TLorentzVector>("vPhoton0");
+  locTreeBranchRegister.Register_Single<TLorentzVector>("vPhoton1");
   locTreeBranchRegister.Register_Single<Double_t>("pX_Proton0");
   locTreeBranchRegister.Register_Single<Double_t>("pY_Proton0");
   locTreeBranchRegister.Register_Single<Double_t>("pZ_Proton0");
@@ -74,6 +79,7 @@ jerror_t DEventProcessor_2p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("t_shower1");
   locTreeBranchRegister.Register_Single<Bool_t>("BCAL_shower1");
 
+  locTreeBranchRegister.Register_Single<TVector3>("KF_vertex");
   locTreeBranchRegister.Register_Single<Double_t>("vertex_X");
   locTreeBranchRegister.Register_Single<Double_t>("vertex_Y");
   locTreeBranchRegister.Register_Single<Double_t>("vertex_Z");
@@ -122,7 +128,7 @@ jerror_t DEventProcessor_2p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("TrackFCAL_DOCA_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_piminuscand");
-  locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("t0_piminuscand");
 
   locTreeBranchRegister.Register_Single<Double_t>("FOM_prot0cand");
   locTreeBranchRegister.Register_Single<Double_t>("NDF_prot0cand");
@@ -154,7 +160,7 @@ jerror_t DEventProcessor_2p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("TrackFCAL_DOCA_prot0cand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_prot0cand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_prot0cand");
-  locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_prot0cand");
+  locTreeBranchRegister.Register_Single<Double_t>("t0_prot0cand");
 
   locTreeBranchRegister.Register_Single<Double_t>("FOM_prot1cand");
   locTreeBranchRegister.Register_Single<Double_t>("NDF_prot1cand");
@@ -186,7 +192,7 @@ jerror_t DEventProcessor_2p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("TrackFCAL_DOCA_prot1cand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_prot1cand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_prot1cand");
-  locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_prot1cand");
+  locTreeBranchRegister.Register_Single<Double_t>("t0_prot1cand");
 
   //REGISTER BRANCHES
   dTreeInterface->Create_Branches(locTreeBranchRegister);
@@ -348,31 +354,31 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double Beta_Timing_piminuscand  = hyp_pim->measuredBeta();
   double NDF_Timing_piminuscand   = hyp_pim->Get_NDF_Timing();
   double ChiSq_Timing_piminuscand = hyp_pim->Get_ChiSq_Timing();
-  double dEdx_TOF_piminuscand     = (hyp_pim->Get_TOFHitMatchParams() != NULL) ? hyp_pim->Get_TOFHitMatchParams()->dEdx : 0.0;
-  double dEdx_ST_piminuscand      = (hyp_pim->Get_SCHitMatchParams()  != NULL) ? hyp_pim->Get_SCHitMatchParams()->dEdx : 0.0;
-  double dEdx_CDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_CDC : 0.0;
-  double dEdx_FDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_FDC : 0.0;
+  double dEdx_TOF_piminuscand     = (hyp_pim->Get_TOFHitMatchParams() != NULL) ? hyp_pim->Get_TOFHitMatchParams()->dEdx : 999.0;
+  double dEdx_ST_piminuscand      = (hyp_pim->Get_SCHitMatchParams()  != NULL) ? hyp_pim->Get_SCHitMatchParams()->dEdx : 999.0;
+  double dEdx_CDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
+  double t0_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerpiminus = NULL;
   if (hyp_pim->Get_BCALShowerMatchParams() != NULL) showerpiminus = hyp_pim->Get_BCALShowerMatchParams()->dBCALShower;
-  double Energy_BCAL_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E : 0.0;
-  double Energy_BCALPreshower_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E_preshower : 0.0;
-  double SigLong_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->sigLong : 0.0;
-  double SigTheta_BCAL_piminuscand= (showerpiminus != NULL ) ? showerpiminus->sigTheta : 0.0;
-  double SigTrans_BCAL_piminuscand= (showerpiminus != NULL ) ? showerpiminus->sigTrans : 0.0;
-  double RMSTime_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->rmsTime : 0.0;
-  double E_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->E : 0.0;
-  double x_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->x : 0.0;
-  double y_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->y : 0.0;
-  double z_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->z : 0.0;
-  double t_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->t : 0.0;
+  double Energy_BCAL_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E : 999.0;
+  double Energy_BCALPreshower_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E_preshower : 999.0;
+  double SigLong_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->sigLong : 999.0;
+  double SigTheta_BCAL_piminuscand= (showerpiminus != NULL ) ? showerpiminus->sigTheta : 999.0;
+  double SigTrans_BCAL_piminuscand= (showerpiminus != NULL ) ? showerpiminus->sigTrans : 999.0;
+  double RMSTime_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->rmsTime : 999.0;
+  double E_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->E : 999.0;
+  double x_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->x : 999.0;
+  double y_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->y : 999.0;
+  double z_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->z : 999.0;
+  double t_BCAL_piminuscand = (showerpiminus != NULL ) ? showerpiminus->t : 999.0;
 
   const DFCALShower* FCALshowerpiminus = NULL;
   if (hyp_pim->Get_FCALShowerMatchParams() != NULL) FCALshowerpiminus = hyp_pim->Get_FCALShowerMatchParams()->dFCALShower;
-  double Energy_FCAL_piminuscand = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getEnergy() : 0.0;
-  double E1E9_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getE1E9() : 0.0;
-  double E9E25_FCAL_piminuscand  = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getE9E25() : 0.0;
-  double SumU_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getSumU() : 0.0;
-  double SumV_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getSumV() : 0.0;
+  double Energy_FCAL_piminuscand = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getEnergy() : 999.0;
+  double E1E9_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getE1E9() : 999.0;
+  double E9E25_FCAL_piminuscand  = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getE9E25() : 999.0;
+  double SumU_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getSumU() : 999.0;
+  double SumV_FCAL_piminuscand   = (FCALshowerpiminus != NULL) ? FCALshowerpiminus->getSumV() : 999.0;
 
   double TrackBCAL_DeltaPhi_piminuscand = ( hyp_pim->Get_BCALShowerMatchParams()  != NULL) ? hyp_pim->Get_BCALShowerMatchParams()->dDeltaPhiToShower : 999.0;
   double TrackBCAL_DeltaZ_piminuscand   = ( hyp_pim->Get_BCALShowerMatchParams()  != NULL) ? hyp_pim->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
@@ -390,7 +396,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_piminuscand",dEdx_TOF_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_piminuscand",dEdx_ST_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_piminuscand",dEdx_CDC_piminuscand);
-  dTreeFillData.Fill_Single<Double_t>("dEdx_FDC_piminuscand",dEdx_FDC_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("t0_piminuscand",t0_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCAL_piminuscand",Energy_BCAL_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCALPreshower_piminuscand",Energy_BCALPreshower_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("SigLong_BCAL_piminuscand",SigLong_BCAL_piminuscand); 
@@ -420,31 +426,31 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double Beta_Timing_prot0cand  = hyp_pr0->measuredBeta();
   double NDF_Timing_prot0cand   = hyp_pr0->Get_NDF_Timing();
   double ChiSq_Timing_prot0cand = hyp_pr0->Get_ChiSq_Timing();
-  double dEdx_TOF_prot0cand     = (hyp_pr0->Get_TOFHitMatchParams() != NULL) ? hyp_pr0->Get_TOFHitMatchParams()->dEdx : 0.0;
-  double dEdx_ST_prot0cand      = (hyp_pr0->Get_SCHitMatchParams()  != NULL) ? hyp_pr0->Get_SCHitMatchParams()->dEdx : 0.0;
-  double dEdx_CDC_prot0cand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_CDC : 0.0;
-  double dEdx_FDC_prot0cand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_FDC : 0.0;
+  double dEdx_TOF_prot0cand     = (hyp_pr0->Get_TOFHitMatchParams() != NULL) ? hyp_pr0->Get_TOFHitMatchParams()->dEdx : 999.0;
+  double dEdx_ST_prot0cand      = (hyp_pr0->Get_SCHitMatchParams()  != NULL) ? hyp_pr0->Get_SCHitMatchParams()->dEdx : 999.0;
+  double dEdx_CDC_prot0cand      = (hyp_pr0->Get_TrackTimeBased() != NULL) ? hyp_pr0->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
+  double t0_prot0cand      = (hyp_pr0->Get_TrackTimeBased() != NULL) ? hyp_pr0->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerprot0 = NULL;
   if (hyp_pr0->Get_BCALShowerMatchParams() != NULL) showerprot0 = hyp_pr0->Get_BCALShowerMatchParams()->dBCALShower;
-  double Energy_BCAL_prot0cand  = (showerprot0 != NULL ) ? showerprot0->E : 0.0;
-  double Energy_BCALPreshower_prot0cand  = (showerprot0 != NULL ) ? showerprot0->E_preshower : 0.0;
-  double SigLong_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->sigLong : 0.0;
-  double SigTheta_BCAL_prot0cand= (showerprot0 != NULL ) ? showerprot0->sigTheta : 0.0;
-  double SigTrans_BCAL_prot0cand= (showerprot0 != NULL ) ? showerprot0->sigTrans : 0.0;
-  double RMSTime_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->rmsTime : 0.0;
-  double E_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->E : 0.0;
-  double x_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->x : 0.0;
-  double y_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->y : 0.0;
-  double z_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->z : 0.0;
-  double t_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->t : 0.0;
+  double Energy_BCAL_prot0cand  = (showerprot0 != NULL ) ? showerprot0->E : 999.0;
+  double Energy_BCALPreshower_prot0cand  = (showerprot0 != NULL ) ? showerprot0->E_preshower : 999.0;
+  double SigLong_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->sigLong : 999.0;
+  double SigTheta_BCAL_prot0cand= (showerprot0 != NULL ) ? showerprot0->sigTheta : 999.0;
+  double SigTrans_BCAL_prot0cand= (showerprot0 != NULL ) ? showerprot0->sigTrans : 999.0;
+  double RMSTime_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->rmsTime : 999.0;
+  double E_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->E : 999.0;
+  double x_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->x : 999.0;
+  double y_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->y : 999.0;
+  double z_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->z : 999.0;
+  double t_BCAL_prot0cand = (showerprot0 != NULL ) ? showerprot0->t : 999.0;
 
   const DFCALShower* FCALshowerprot0 = NULL;
   if (hyp_pr0->Get_FCALShowerMatchParams() != NULL) FCALshowerprot0 = hyp_pr0->Get_FCALShowerMatchParams()->dFCALShower;
-  double Energy_FCAL_prot0cand = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getEnergy() : 0.0;
-  double E1E9_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getE1E9() : 0.0;
-  double E9E25_FCAL_prot0cand  = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getE9E25() : 0.0;
-  double SumU_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getSumU() : 0.0;
-  double SumV_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getSumV() : 0.0;
+  double Energy_FCAL_prot0cand = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getEnergy() : 999.0;
+  double E1E9_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getE1E9() : 999.0;
+  double E9E25_FCAL_prot0cand  = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getE9E25() : 999.0;
+  double SumU_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getSumU() : 999.0;
+  double SumV_FCAL_prot0cand   = (FCALshowerprot0 != NULL) ? FCALshowerprot0->getSumV() : 999.0;
 
   double TrackBCAL_DeltaPhi_prot0cand = ( hyp_pr0->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr0->Get_BCALShowerMatchParams()->dDeltaPhiToShower : 999.0;
   double TrackBCAL_DeltaZ_prot0cand   = ( hyp_pr0->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr0->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
@@ -462,7 +468,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_prot0cand",dEdx_TOF_prot0cand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_prot0cand",dEdx_ST_prot0cand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_prot0cand",dEdx_CDC_prot0cand);
-  dTreeFillData.Fill_Single<Double_t>("dEdx_FDC_prot0cand",dEdx_FDC_prot0cand);
+  dTreeFillData.Fill_Single<Double_t>("t0_prot0cand",t0_prot0cand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCAL_prot0cand",Energy_BCAL_prot0cand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCALPreshower_prot0cand",Energy_BCALPreshower_prot0cand);
   dTreeFillData.Fill_Single<Double_t>("SigLong_BCAL_prot0cand",SigLong_BCAL_prot0cand);
@@ -492,31 +498,31 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double Beta_Timing_prot1cand  = hyp_pr1->measuredBeta();
   double NDF_Timing_prot1cand   = hyp_pr1->Get_NDF_Timing();
   double ChiSq_Timing_prot1cand = hyp_pr1->Get_ChiSq_Timing();
-  double dEdx_TOF_prot1cand     = (hyp_pr1->Get_TOFHitMatchParams() != NULL) ? hyp_pr1->Get_TOFHitMatchParams()->dEdx : 0.0;
-  double dEdx_ST_prot1cand      = (hyp_pr1->Get_SCHitMatchParams()  != NULL) ? hyp_pr1->Get_SCHitMatchParams()->dEdx : 0.0;
-  double dEdx_CDC_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->ddEdx_CDC : 0.0;
-  double dEdx_FDC_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->ddEdx_FDC : 0.0;
+  double dEdx_TOF_prot1cand     = (hyp_pr1->Get_TOFHitMatchParams() != NULL) ? hyp_pr1->Get_TOFHitMatchParams()->dEdx : 999.0;
+  double dEdx_ST_prot1cand      = (hyp_pr1->Get_SCHitMatchParams()  != NULL) ? hyp_pr1->Get_SCHitMatchParams()->dEdx : 999.0;
+  double dEdx_CDC_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
+  double t0_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerprot1 = NULL;
   if (hyp_pr1->Get_BCALShowerMatchParams() != NULL) showerprot1 = hyp_pr1->Get_BCALShowerMatchParams()->dBCALShower;
-  double Energy_BCAL_prot1cand  = (showerprot1 != NULL ) ? showerprot1->E : 0.0;
-  double Energy_BCALPreshower_prot1cand  = (showerprot1 != NULL ) ? showerprot1->E_preshower : 0.0;
-  double SigLong_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->sigLong : 0.0;
-  double SigTheta_BCAL_prot1cand= (showerprot1 != NULL ) ? showerprot1->sigTheta : 0.0;
-  double SigTrans_BCAL_prot1cand= (showerprot1 != NULL ) ? showerprot1->sigTrans : 0.0;
-  double RMSTime_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->rmsTime : 0.0;
-  double E_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->E : 0.0;
-  double x_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->x : 0.0;
-  double y_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->y : 0.0;
-  double z_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->z : 0.0;
-  double t_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->t : 0.0;
+  double Energy_BCAL_prot1cand  = (showerprot1 != NULL ) ? showerprot1->E : 999.0;
+  double Energy_BCALPreshower_prot1cand  = (showerprot1 != NULL ) ? showerprot1->E_preshower : 999.0;
+  double SigLong_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->sigLong : 999.0;
+  double SigTheta_BCAL_prot1cand= (showerprot1 != NULL ) ? showerprot1->sigTheta : 999.0;
+  double SigTrans_BCAL_prot1cand= (showerprot1 != NULL ) ? showerprot1->sigTrans : 999.0;
+  double RMSTime_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->rmsTime : 999.0;
+  double E_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->E : 999.0;
+  double x_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->x : 999.0;
+  double y_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->y : 999.0;
+  double z_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->z : 999.0;
+  double t_BCAL_prot1cand = (showerprot1 != NULL ) ? showerprot1->t : 999.0;
 
   const DFCALShower* FCALshowerprot1 = NULL;
   if (hyp_pr1->Get_FCALShowerMatchParams() != NULL) FCALshowerprot1 = hyp_pr1->Get_FCALShowerMatchParams()->dFCALShower;
-  double Energy_FCAL_prot1cand = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getEnergy() : 0.0;
-  double E1E9_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getE1E9() : 0.0;
-  double E9E25_FCAL_prot1cand  = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getE9E25() : 0.0;
-  double SumU_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getSumU() : 0.0;
-  double SumV_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getSumV() : 0.0;
+  double Energy_FCAL_prot1cand = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getEnergy() : 999.0;
+  double E1E9_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getE1E9() : 999.0;
+  double E9E25_FCAL_prot1cand  = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getE9E25() : 999.0;
+  double SumU_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getSumU() : 999.0;
+  double SumV_FCAL_prot1cand   = (FCALshowerprot1 != NULL) ? FCALshowerprot1->getSumV() : 999.0;
 
   double TrackBCAL_DeltaPhi_prot1cand = ( hyp_pr1->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr1->Get_BCALShowerMatchParams()->dDeltaPhiToShower : 999.0;
   double TrackBCAL_DeltaZ_prot1cand   = ( hyp_pr1->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr1->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
@@ -534,7 +540,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_prot1cand",dEdx_TOF_prot1cand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_prot1cand",dEdx_ST_prot1cand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_prot1cand",dEdx_CDC_prot1cand);
-  dTreeFillData.Fill_Single<Double_t>("dEdx_FDC_prot1cand",dEdx_FDC_prot1cand);
+  dTreeFillData.Fill_Single<Double_t>("t0_prot1cand",t0_prot1cand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCAL_prot1cand",Energy_BCAL_prot1cand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCALPreshower_prot1cand",Energy_BCALPreshower_prot1cand);
   dTreeFillData.Fill_Single<Double_t>("SigLong_BCAL_prot1cand",SigLong_BCAL_prot1cand);
@@ -652,6 +658,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   
   TVector3 vertexPos(vertex_x,vertex_y,vertex_z);
   
+  dTreeFillData.Fill_Single<TVector3>("KF_vertex", vertexPos);
   dTreeFillData.Fill_Single<Double_t>("vertex_X", vertex_x);
   dTreeFillData.Fill_Single<Double_t>("vertex_Y", vertex_y);
   dTreeFillData.Fill_Single<Double_t>("vertex_Z", vertex_z);
@@ -679,6 +686,11 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   h_m2pi->Fill((vPi0+vPiMinus).M());
   japp->RootFillUnLock(this); //RELEASE ROOT FILL LOCK
   
+  dTreeFillData.Fill_Single<TLorentzVector>("vProton0", vProton0);
+  dTreeFillData.Fill_Single<TLorentzVector>("vProton1", vProton1);
+  dTreeFillData.Fill_Single<TLorentzVector>("vPiMinus", vPiMinus);
+  dTreeFillData.Fill_Single<TLorentzVector>("vProton0", vProton0);
+  dTreeFillData.Fill_Single<TLorentzVector>("vPhoton1", vPhoton1);
   dTreeFillData.Fill_Single<Double_t>("pX_Proton0", vProton0.X());
   dTreeFillData.Fill_Single<Double_t>("pY_Proton0", vProton0.Y());
   dTreeFillData.Fill_Single<Double_t>("pZ_Proton0", vProton0.Z());
@@ -762,10 +774,10 @@ void DEventProcessor_2p1pi1pi0::GetHypotheses(vector<const DChargedTrack *> &tra
       if ((hyp = firstTrack->Get_Hypothesis(particle)) == NULL)
 	continue;
       
-      double prob = TMath::Prob(hyp->Get_ChiSq_DCdEdx(),hyp->Get_NDF_DCdEdx());
+      //double prob = TMath::Prob(hyp->Get_ChiSq_DCdEdx(),hyp->Get_NDF_DCdEdx());
       
-      if (prob <= 0)
-	continue;
+      //if (prob <= 0)
+      //continue;
       
       map<Particle_t, vector<const DChargedTrackHypothesis*> > newHypothesis = assignmentHypothesis;
       
