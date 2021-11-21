@@ -357,7 +357,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double dEdx_TOF_piminuscand     = (hyp_pim->Get_TOFHitMatchParams() != NULL) ? hyp_pim->Get_TOFHitMatchParams()->dEdx : 999.0;
   double dEdx_ST_piminuscand      = (hyp_pim->Get_SCHitMatchParams()  != NULL) ? hyp_pim->Get_SCHitMatchParams()->dEdx : 999.0;
   double dEdx_CDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
-  double t0_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->t0 : 999.0;
+  double t0_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerpiminus = NULL;
   if (hyp_pim->Get_BCALShowerMatchParams() != NULL) showerpiminus = hyp_pim->Get_BCALShowerMatchParams()->dBCALShower;
   double Energy_BCAL_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E : 999.0;
@@ -429,7 +429,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double dEdx_TOF_prot0cand     = (hyp_pr0->Get_TOFHitMatchParams() != NULL) ? hyp_pr0->Get_TOFHitMatchParams()->dEdx : 999.0;
   double dEdx_ST_prot0cand      = (hyp_pr0->Get_SCHitMatchParams()  != NULL) ? hyp_pr0->Get_SCHitMatchParams()->dEdx : 999.0;
   double dEdx_CDC_prot0cand      = (hyp_pr0->Get_TrackTimeBased() != NULL) ? hyp_pr0->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
-  double t0_prot0cand      = (hyp_pr0->Get_TrackTimeBased() != NULL) ? hyp_pr0->Get_TrackTimeBased()->t0 : 999.0;
+  double t0_prot0cand      = (hyp_pr0->Get_TrackTimeBased() != NULL) ? hyp_pr0->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerprot0 = NULL;
   if (hyp_pr0->Get_BCALShowerMatchParams() != NULL) showerprot0 = hyp_pr0->Get_BCALShowerMatchParams()->dBCALShower;
   double Energy_BCAL_prot0cand  = (showerprot0 != NULL ) ? showerprot0->E : 999.0;
@@ -501,7 +501,7 @@ jerror_t DEventProcessor_2p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double dEdx_TOF_prot1cand     = (hyp_pr1->Get_TOFHitMatchParams() != NULL) ? hyp_pr1->Get_TOFHitMatchParams()->dEdx : 999.0;
   double dEdx_ST_prot1cand      = (hyp_pr1->Get_SCHitMatchParams()  != NULL) ? hyp_pr1->Get_SCHitMatchParams()->dEdx : 999.0;
   double dEdx_CDC_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
-  double t0_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->t0 : 999.0;
+  double t0_prot1cand      = (hyp_pr1->Get_TrackTimeBased() != NULL) ? hyp_pr1->Get_TrackTimeBased()->t0() : 999.0;
   const DBCALShower* showerprot1 = NULL;
   if (hyp_pr1->Get_BCALShowerMatchParams() != NULL) showerprot1 = hyp_pr1->Get_BCALShowerMatchParams()->dBCALShower;
   double Energy_BCAL_prot1cand  = (showerprot1 != NULL ) ? showerprot1->E : 999.0;
