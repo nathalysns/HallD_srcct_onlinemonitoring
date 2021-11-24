@@ -120,6 +120,8 @@ jerror_t DEventProcessor_1p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaTOF_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaBCAL_piminuscand");
 
   locTreeBranchRegister.Register_Single<Double_t>("FOM_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("NDF_protcand");
@@ -152,6 +154,8 @@ jerror_t DEventProcessor_1p1pi1pi0::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaTOF_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaBCAL_protcand");
 
   //REGISTER BRANCHES
   dTreeInterface->Create_Branches(locTreeBranchRegister);
@@ -189,24 +193,20 @@ jerror_t DEventProcessor_1p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
 
   // Pulling detector information
   vector<const DBeamPhoton*> beam_ph;
-
   vector<const DChargedTrack*>ch_tracks;
-
   vector<const DNeutralShower*> showers;
-
   vector<const DMCThrown*> mcthrown;
-
   vector<const DMCReaction*> reaction;
+  const DEventRFBunch* locEventRFBunch = NULL;
+  const DParticleID* locParticleID = NULL;
 
   loop->Get(beam_ph);
-
   loop->Get(ch_tracks);
-
   loop->Get(showers);
-
   loop->Get(mcthrown);
-
   loop->Get(reaction);
+  loop->GetSingle(locEventRFBunch);
+  loop->GetSingle(locParticleID);
 
   dTreeFillData.Fill_Single<Int_t>("eventNumber", eventnumber);
 
@@ -341,6 +341,17 @@ jerror_t DEventProcessor_1p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double TrackBCAL_DeltaZ_piminuscand   = ( hyp_pim->Get_BCALShowerMatchParams()  != NULL) ? hyp_pim->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
   double TrackFCAL_DOCA_piminuscand     = ( hyp_pim->Get_FCALShowerMatchParams()  != NULL) ? hyp_pim->Get_FCALShowerMatchParams()->dDOCAToShower : 999.0;  
 
+  double locStartTime_piminus = locParticleID->Calc_PropagatedRFTime(hyp_pim, locEventRFBunch);
+  auto locTOFHitMatchParams_piminus = hyp_pim->Get_TOFHitMatchParams();
+  double locDeltaTOF_piminuscand = ( locTOFHitMatchParams_piminus != NULL ) ? locTOFHitMatchParams_piminus->dHitTime - locTOFHitMatchParams_piminus->dFlightTime - locStartTime_piminus : 999.0;
+  
+  auto locBCALShowerMatchParams_piminus = hyp_pim->Get_BCALShowerMatchParams();
+  double locDeltaBCAL_piminuscand = 999.0;
+  if(locBCALShowerMatchParams_piminus != NULL){
+    const DBCALShower* locBCALShower_piminus = locBCALShowerMatchParams_piminus->dBCALShower;
+    locDeltaBCAL_piminuscand = locBCALShower_piminus->t - locBCALShowerMatchParams_piminus->dFlightTime - locStartTime_piminus;
+  }
+
   dTreeFillData.Fill_Single<Double_t>("FOM_piminuscand",FOM_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("NDF_piminuscand",NDF_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_piminuscand",ChiSq_piminuscand);
@@ -373,6 +384,8 @@ jerror_t DEventProcessor_1p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaPhi_piminuscand",TrackBCAL_DeltaPhi_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaZ_piminuscand",TrackBCAL_DeltaZ_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("TrackFCAL_DOCA_piminuscand",TrackFCAL_DOCA_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaTOF_piminuscand",locDeltaTOF_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaBCAL_piminuscand",locDeltaBCAL_piminuscand);
 
   // Pi Minus Candidate
   double FOM_protcand          = hyp_pr->Get_FOM();
@@ -413,6 +426,17 @@ jerror_t DEventProcessor_1p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   double TrackBCAL_DeltaZ_protcand   = ( hyp_pr->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
   double TrackFCAL_DOCA_protcand     = ( hyp_pr->Get_FCALShowerMatchParams()  != NULL) ? hyp_pr->Get_FCALShowerMatchParams()->dDOCAToShower : 999.0;
 
+  double locStartTime_prot = locParticleID->Calc_PropagatedRFTime(hyp_pr, locEventRFBunch);
+  auto locTOFHitMatchParams_prot = hyp_pr->Get_TOFHitMatchParams();
+  double locDeltaTOF_protcand = ( locTOFHitMatchParams_prot != NULL ) ? locTOFHitMatchParams_prot->dHitTime - locTOFHitMatchParams_prot->dFlightTime - locStartTime_prot : 999.0;
+
+  auto locBCALShowerMatchParams_prot = hyp_pr->Get_BCALShowerMatchParams();
+  double locDeltaBCAL_protcand = 999.0;
+  if(locBCALShowerMatchParams_prot != NULL){
+    const DBCALShower* locBCALShower_prot = locBCALShowerMatchParams_prot->dBCALShower;
+    locDeltaBCAL_protcand = locBCALShower_prot->t - locBCALShowerMatchParams_prot->dFlightTime - locStartTime_prot;
+  }
+
   dTreeFillData.Fill_Single<Double_t>("FOM_protcand",FOM_protcand);
   dTreeFillData.Fill_Single<Double_t>("NDF_protcand",NDF_protcand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_protcand",ChiSq_protcand);
@@ -445,6 +469,8 @@ jerror_t DEventProcessor_1p1pi1pi0::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaPhi_protcand",TrackBCAL_DeltaPhi_protcand);
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaZ_protcand",TrackBCAL_DeltaZ_protcand);
   dTreeFillData.Fill_Single<Double_t>("TrackFCAL_DOCA_protcand",TrackFCAL_DOCA_protcand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaTOF_protcand",locDeltaTOF_protcand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaBCAL_protcand",locDeltaBCAL_protcand);
 
   // Kinematic Fitting
   dKinFitUtils->Reset_NewEvent();
