@@ -51,25 +51,6 @@ jerror_t DEventProcessor_1p1pi::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("pX_PiMinus");
   locTreeBranchRegister.Register_Single<Double_t>("pY_PiMinus");
   locTreeBranchRegister.Register_Single<Double_t>("pZ_PiMinus");
-  //locTreeBranchRegister.Register_Single<Double_t>("pX_Photon0");
-  //locTreeBranchRegister.Register_Single<Double_t>("pY_Photon0");
-  //locTreeBranchRegister.Register_Single<Double_t>("pZ_Photon0");
-  //locTreeBranchRegister.Register_Single<Double_t>("pX_Photon1");
-  //locTreeBranchRegister.Register_Single<Double_t>("pY_Photon1");
-  //locTreeBranchRegister.Register_Single<Double_t>("pZ_Photon1");
-
-  //locTreeBranchRegister.Register_Single<Double_t>("x_shower0");
-  //locTreeBranchRegister.Register_Single<Double_t>("y_shower0");
-  //locTreeBranchRegister.Register_Single<Double_t>("z_shower0");
-  //locTreeBranchRegister.Register_Single<Double_t>("E_shower0");
-  //locTreeBranchRegister.Register_Single<Double_t>("t_shower0");
-  //locTreeBranchRegister.Register_Single<Bool_t>("BCAL_shower0");
-  //locTreeBranchRegister.Register_Single<Double_t>("x_shower1");
-  //locTreeBranchRegister.Register_Single<Double_t>("y_shower1");
-  //locTreeBranchRegister.Register_Single<Double_t>("z_shower1");
-  //locTreeBranchRegister.Register_Single<Double_t>("E_shower1");
-  //locTreeBranchRegister.Register_Single<Double_t>("t_shower1");
-  //locTreeBranchRegister.Register_Single<Bool_t>("BCAL_shower1");
 
   locTreeBranchRegister.Register_Single<Double_t>("vertex_X");
   locTreeBranchRegister.Register_Single<Double_t>("vertex_Y");
@@ -118,6 +99,10 @@ jerror_t DEventProcessor_1p1pi::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("TrackBCAL_DeltaZ_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("TrackFCAL_DOCA_piminuscand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaTOF_piminuscand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaBCAL_piminuscand");
 
   locTreeBranchRegister.Register_Single<Double_t>("FOM_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("NDF_protcand");
@@ -148,6 +133,11 @@ jerror_t DEventProcessor_1p1pi::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("TrackBCAL_DeltaZ_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("TrackFCAL_DOCA_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("dEdx_ST_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("dEdx_CDC_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("dEdx_FDC_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaTOF_protcand");
+  locTreeBranchRegister.Register_Single<Double_t>("locDeltaBCAL_protcand");
+
 
   //REGISTER BRANCHES
   dTreeInterface->Create_Branches(locTreeBranchRegister);
@@ -158,7 +148,7 @@ jerror_t DEventProcessor_1p1pi::init(void)
 
   //h_BCAL = new TH2D("h_BCAL","BCAL;z [cm];r [cm]",100,-200.,800.,100,0.,200.);
   //h_FCAL = new TH2D("h_FCAL","FCAL;z [cm];r [cm]",100,-200.,800.,100,0.,200.);
- // h_m2gamma = new TH1D("h_m2gamma",";m2gamma [GeV];",100,0.,1.);
+  //h_m2gamma = new TH1D("h_m2gamma",";m2gamma [GeV];",100,0.,1.);
  // h_m2pi = new TH1D("h_m2pi",";m2pi [GeV];",250,0.,5.);
 
   main->cd();
@@ -185,14 +175,13 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
 
   // Pulling detector information
   vector<const DBeamPhoton*> beam_ph;
-
   vector<const DChargedTrack*>ch_tracks;
-
- vector<const DNeutralShower*> showers;
-
+  vector<const DNeutralShower*> showers;
   vector<const DMCThrown*> mcthrown;
-
   vector<const DMCReaction*> reaction;
+  const DEventRFBunch* locEventRFBunch = NULL;
+  const DParticleID* locParticleID = NULL;
+
 
   loop->Get(beam_ph);
 
@@ -205,13 +194,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   loop->Get(reaction);
 
   dTreeFillData.Fill_Single<Int_t>("eventNumber", eventnumber);
-
-  //double E_shower[2];
-  //double x_shower[2];
-  //double y_shower[2];
-  //double z_shower[2];
-  //double t_shower[2];
-  //bool BCAL_shower[2];
 
   if (mcthrown.size() > 0) {
     dTreeFillData.Fill_Single<Int_t>("N_thrown", mcthrown.size());
@@ -230,10 +212,10 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
       }
   }
   
-  //fcal_ncl    = 0;
-  //fcal_en_cl  = 0;
-  //fcal_x_cl   = 0;
-  //fcal_y_cl   = 0;
+  fcal_ncl    = 0;
+  fcal_en_cl  = 0;
+  fcal_x_cl   = 0;
+  fcal_y_cl   = 0;
 
   if ((ch_tracks.size() != 2) || (showers.size() != 0))
     return NOERROR;
@@ -262,32 +244,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
 	}
       
     }
-  
- /* for (unsigned int ii = 0; ii<2; ii++)
-    {
-      
-      const DNeutralShower *shower = showers[ii];
-      
-      E_shower[ii] = shower->dEnergy;
-      x_shower[ii] = shower->dSpacetimeVertex.X();
-      y_shower[ii] = shower->dSpacetimeVertex.Y();
-      z_shower[ii] = shower->dSpacetimeVertex.Z();
-      t_shower[ii] = shower->dSpacetimeVertex.T();
-      BCAL_shower[ii] = (shower->dDetectorSystem == SYS_BCAL);
-
-      // Filling shower positions
-      japp->RootFillLock(this); //ACQUIRE ROOT FILL LOCK
-      if (BCAL_shower[ii])
-	{
-	  h_BCAL->Fill(z_shower[ii],shower->dSpacetimeVertex.Perp());
-	}
-      else
-	{
-	  h_FCAL->Fill(z_shower[ii],shower->dSpacetimeVertex.Perp());
-	}
-      japp->RootFillUnLock(this); //RELEASE ROOT FILL LOCK
-      
-    }*/
 
   if (nHyp != 1)
     return NOERROR;
@@ -309,6 +265,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   double ChiSq_Timing_piminuscand = hyp_pim->Get_ChiSq_Timing();
   double dEdx_TOF_piminuscand     = (hyp_pim->Get_TOFHitMatchParams() != NULL) ? hyp_pim->Get_TOFHitMatchParams()->dEdx : 0.0;
   double dEdx_ST_piminuscand      = (hyp_pim->Get_SCHitMatchParams()  != NULL) ? hyp_pim->Get_SCHitMatchParams()->dEdx : 0.0;
+  double dEdx_CDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
+  double dEdx_FDC_piminuscand      = (hyp_pim->Get_TrackTimeBased() != NULL) ? hyp_pim->Get_TrackTimeBased()->ddEdx_FDC : 999.0;
   const DBCALShower* showerpiminus = NULL;
   if (hyp_pim->Get_BCALShowerMatchParams() != NULL) showerpiminus = hyp_pim->Get_BCALShowerMatchParams()->dBCALShower;
   double Energy_BCAL_piminuscand  = (showerpiminus != NULL ) ? showerpiminus->E : 0.0;
@@ -335,6 +293,17 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   double TrackBCAL_DeltaZ_piminuscand   = ( hyp_pim->Get_BCALShowerMatchParams()  != NULL) ? hyp_pim->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
   double TrackFCAL_DOCA_piminuscand     = ( hyp_pim->Get_FCALShowerMatchParams()  != NULL) ? hyp_pim->Get_FCALShowerMatchParams()->dDOCAToShower : 999.0;  
 
+  double locStartTime_piminus = locParticleID->Calc_PropagatedRFTime(hyp_pim, locEventRFBunch);
+  auto locTOFHitMatchParams_piminus = hyp_pim->Get_TOFHitMatchParams();
+  double locDeltaTOF_piminuscand = ( locTOFHitMatchParams_piminus != NULL ) ? locTOFHitMatchParams_piminus->dHitTime - locTOFHitMatchParams_piminus->dFlightTime - locStartTime_piminus : 999.0;
+
+  auto locBCALShowerMatchParams_piminus = hyp_pim->Get_BCALShowerMatchParams();
+  double locDeltaBCAL_piminuscand = 999.0;
+  if(locBCALShowerMatchParams_piminus != NULL){
+    const DBCALShower* locBCALShower_piminus = locBCALShowerMatchParams_piminus->dBCALShower;
+    locDeltaBCAL_piminuscand = locBCALShower_piminus->t - locBCALShowerMatchParams_piminus->dFlightTime - locStartTime_piminus;
+  }
+  
   dTreeFillData.Fill_Single<Double_t>("FOM_piminuscand",FOM_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("NDF_piminuscand",NDF_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_piminuscand",ChiSq_piminuscand);
@@ -346,6 +315,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_piminuscand",ChiSq_Timing_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_piminuscand",dEdx_TOF_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_piminuscand",dEdx_ST_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_piminuscand",dEdx_CDC_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("dEdx_FDC_piminuscand",dEdx_FDC_piminuscand);  
   dTreeFillData.Fill_Single<Double_t>("Energy_BCAL_piminuscand",Energy_BCAL_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCALPreshower_piminuscand",Energy_BCALPreshower_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("SigLong_BCAL_piminuscand",SigLong_BCAL_piminuscand); 
@@ -365,6 +336,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaPhi_piminuscand",TrackBCAL_DeltaPhi_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaZ_piminuscand",TrackBCAL_DeltaZ_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("TrackFCAL_DOCA_piminuscand",TrackFCAL_DOCA_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaTOF_piminuscand",locDeltaTOF_piminuscand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaBCAL_piminuscand",locDeltaBCAL_piminuscand);
 
   // Proton Candidate
   double FOM_protcand          = hyp_pr->Get_FOM();
@@ -377,6 +350,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   double ChiSq_Timing_protcand = hyp_pr->Get_ChiSq_Timing();
   double dEdx_TOF_protcand     = (hyp_pr->Get_TOFHitMatchParams() != NULL) ? hyp_pr->Get_TOFHitMatchParams()->dEdx : 0.0;
   double dEdx_ST_protcand      = (hyp_pr->Get_SCHitMatchParams()  != NULL) ? hyp_pr->Get_SCHitMatchParams()->dEdx : 0.0;
+  double dEdx_CDC_protcand      = (hyp_pr->Get_TrackTimeBased() != NULL) ? hyp_pr->Get_TrackTimeBased()->ddEdx_CDC : 999.0;
+  double dEdx_FDC_protcand      = (hyp_pr->Get_TrackTimeBased() != NULL) ? hyp_pr->Get_TrackTimeBased()->ddEdx_FDC : 999.0;
   const DBCALShower* showerprot = NULL;
   if (hyp_pr->Get_BCALShowerMatchParams() != NULL) showerprot = hyp_pr->Get_BCALShowerMatchParams()->dBCALShower;
   double Energy_BCAL_protcand  = (showerprot != NULL ) ? showerprot->E : 0.0;
@@ -403,6 +378,17 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   double TrackBCAL_DeltaZ_protcand   = ( hyp_pr->Get_BCALShowerMatchParams()  != NULL) ? hyp_pr->Get_BCALShowerMatchParams()->dDeltaZToShower : 999.0;
   double TrackFCAL_DOCA_protcand     = ( hyp_pr->Get_FCALShowerMatchParams()  != NULL) ? hyp_pr->Get_FCALShowerMatchParams()->dDOCAToShower : 999.0;
 
+  double locStartTime_prot = locParticleID->Calc_PropagatedRFTime(hyp_pr, locEventRFBunch);
+  auto locTOFHitMatchParams_prot = hyp_pr->Get_TOFHitMatchParams();
+  double locDeltaTOF_protcand = ( locTOFHitMatchParams_prot != NULL ) ? locTOFHitMatchParams_prot->dHitTime - locTOFHitMatchParams_prot->dFlightTime - locStartTime_prot : 999.0;
+
+  auto locBCALShowerMatchParams_prot = hyp_pr->Get_BCALShowerMatchParams();
+  double locDeltaBCAL_protcand = 999.0;
+  if(locBCALShowerMatchParams_prot != NULL){
+    const DBCALShower* locBCALShower_prot = locBCALShowerMatchParams_prot->dBCALShower;
+    locDeltaBCAL_protcand = locBCALShower_prot->t - locBCALShowerMatchParams_prot->dFlightTime - locStartTime_prot;
+  }
+
   dTreeFillData.Fill_Single<Double_t>("FOM_protcand",FOM_protcand);
   dTreeFillData.Fill_Single<Double_t>("NDF_protcand",NDF_protcand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_protcand",ChiSq_protcand);
@@ -414,6 +400,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_protcand",ChiSq_Timing_protcand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_protcand",dEdx_TOF_protcand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_protcand",dEdx_ST_protcand);
+  dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_protcand",dEdx_CDC_protcand);
+  dTreeFillData.Fill_Single<Double_t>("dEdx_FDC_protcand",dEdx_FDC_protcand);  
   dTreeFillData.Fill_Single<Double_t>("Energy_BCAL_protcand",Energy_BCAL_protcand);
   dTreeFillData.Fill_Single<Double_t>("Energy_BCALPreshower_protcand",Energy_BCALPreshower_protcand);
   dTreeFillData.Fill_Single<Double_t>("SigLong_BCAL_protcand",SigLong_BCAL_protcand);
@@ -433,6 +421,8 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaPhi_protcand",TrackBCAL_DeltaPhi_protcand);
   dTreeFillData.Fill_Single<Double_t>("TrackBCAL_DeltaZ_protcand",TrackBCAL_DeltaZ_protcand);
   dTreeFillData.Fill_Single<Double_t>("TrackFCAL_DOCA_protcand",TrackFCAL_DOCA_protcand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaTOF_protcand",locDeltaTOF_protcand);
+  dTreeFillData.Fill_Single<Double_t>("locDeltaBCAL_protcand",locDeltaBCAL_protcand);
 
   // Kinematic Fitting
   dKinFitUtils->Reset_NewEvent();
@@ -502,18 +492,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
 	case -211:
 	  fitPiMinus = (*locParticleIterator);
 	  break;
-	/*case 22:
-	  if (fitPhoton0 == NULL)
-	    {
-	      fitPhoton0 = (*locParticleIterator);
-	    }
-	  else
-	    {
-	      fitPhoton1 = (*locParticleIterator);
-	    }
-	  break;
-	case 111:
-	  break;*/
 	default:
 	  cout << pid << "\n\n";
 	  break;
@@ -527,26 +505,10 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("vertex_Y", vertex_y);
   dTreeFillData.Fill_Single<Double_t>("vertex_Z", vertex_z);
   dTreeFillData.Fill_Single<Double_t>("vertex_T", vertex_t);
-  
-  // Showers using fit vertex
-  //TVector3 p_shower0(x_shower[0]-vertex_x,y_shower[0]-vertex_y,z_shower[0]-vertex_z);
-  //p_shower0 = p_shower0.Unit()*E_shower[0];
-  
- // TVector3 p_shower1(x_shower[1]-vertex_x,y_shower[1]-vertex_y,z_shower[1]-vertex_z);
- // p_shower1 = p_shower1.Unit()*E_shower[1];
-  
-  // Filling invariant mass without fitting
-  //double m2gammaSq = 2.*(p_shower1.Mag()*p_shower0.Mag() - p_shower1.Dot(p_shower0));
-  
+
   TLorentzVector vProton(fitProton->Get_Momentum(),sqrt(fitProton->Get_Momentum().Mag2() + mN*mN));
   TLorentzVector vPiMinus(fitPiMinus->Get_Momentum(),sqrt(fitPiMinus->Get_Momentum().Mag2() + mpip*mpip));
-  /*TLorentzVector vPhoton1(fitPhoton1->Get_Momentum(),fitPhoton1->Get_Momentum().Mag());
-  TLorentzVector vPhoton0(fitPhoton0->Get_Momentum(),fitPhoton0->Get_Momentum().Mag());
-  TLorentzVector vPi0 = vPhoton0 + vPhoton1;
-  */
   japp->RootFillLock(this); //ACQUIRE ROOT FILL LOCK
-  //h_m2gamma->Fill(sqrt(m2gammaSq));
-  //h_m2pi->Fill((vPi0+vPiMinus).M());
   japp->RootFillUnLock(this); //RELEASE ROOT FILL LOCK
   
   dTreeFillData.Fill_Single<Double_t>("pX_Proton", vProton.X());
@@ -555,26 +517,7 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("pX_PiMinus", vPiMinus.X());
   dTreeFillData.Fill_Single<Double_t>("pY_PiMinus", vPiMinus.Y());
   dTreeFillData.Fill_Single<Double_t>("pZ_PiMinus", vPiMinus.Z());
-  /*dTreeFillData.Fill_Single<Double_t>("pX_Photon0", vPhoton0.X());
-  dTreeFillData.Fill_Single<Double_t>("pY_Photon0", vPhoton0.Y());
-  dTreeFillData.Fill_Single<Double_t>("pZ_Photon0", vPhoton0.Z());
-  dTreeFillData.Fill_Single<Double_t>("pX_Photon1", vPhoton1.X());
-  dTreeFillData.Fill_Single<Double_t>("pY_Photon1", vPhoton1.Y());
-  dTreeFillData.Fill_Single<Double_t>("pZ_Photon1", vPhoton1.Z());
-  
-  dTreeFillData.Fill_Single<Double_t>("E_shower0", E_shower[0]);
-  dTreeFillData.Fill_Single<Double_t>("x_shower0", x_shower[0]);
-  dTreeFillData.Fill_Single<Double_t>("y_shower0", y_shower[0]);
-  dTreeFillData.Fill_Single<Double_t>("z_shower0", z_shower[0]);
-  dTreeFillData.Fill_Single<Double_t>("t_shower0", t_shower[0]);
-  dTreeFillData.Fill_Single<Bool_t>("BCAL_shower0", BCAL_shower[0]);
-  dTreeFillData.Fill_Single<Double_t>("E_shower1", E_shower[1]);
-  dTreeFillData.Fill_Single<Double_t>("x_shower1", x_shower[1]);
-  dTreeFillData.Fill_Single<Double_t>("y_shower1", y_shower[1]);
-  dTreeFillData.Fill_Single<Double_t>("z_shower1", z_shower[1]);
-  dTreeFillData.Fill_Single<Double_t>("t_shower1", t_shower[1]);
-  dTreeFillData.Fill_Single<Bool_t>("BCAL_shower1", BCAL_shower[1]);
-  */
+
   //FILL TTREE
   dTreeInterface->Fill(dTreeFillData);
   
