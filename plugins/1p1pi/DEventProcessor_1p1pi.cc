@@ -138,10 +138,9 @@ jerror_t DEventProcessor_1p1pi::init(void)
   locTreeBranchRegister.Register_Single<Double_t>("locDeltaTOF_protcand");
   locTreeBranchRegister.Register_Single<Double_t>("locDeltaBCAL_protcand");
 
-
   //REGISTER BRANCHES
   dTreeInterface->Create_Branches(locTreeBranchRegister);
-
+/*
   // create root folder and cd to it, store main dir
   TDirectory *main = gDirectory;
   gDirectory->mkdir("SRC_1p1pi")->cd();
@@ -152,7 +151,7 @@ jerror_t DEventProcessor_1p1pi::init(void)
  // h_m2pi = new TH1D("h_m2pi",";m2pi [GeV];",250,0.,5.);
 
   main->cd();
-
+*/
   return NOERROR;
 }
 
@@ -192,25 +191,9 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   loop->Get(mcthrown);
 
   loop->Get(reaction);
+  loop->GetSingle(locEventRFBunch);
+  loop->GetSingle(locParticleID);
 
-  dTreeFillData.Fill_Single<Int_t>("eventNumber", eventnumber);
-
-  if (mcthrown.size() > 0) {
-    dTreeFillData.Fill_Single<Int_t>("N_thrown", mcthrown.size());
-    dTreeFillData.Fill_Single<Int_t>("beamEnergy_thrown",reaction[0]->beam.energy());
-
-    for (unsigned int ii = 0; ii < mcthrown.size(); ii++)
-      {
-	dTreeFillData.Fill_Array<Int_t>("type_thrown", mcthrown[ii]->type, ii);
-	dTreeFillData.Fill_Array<Double_t>("pX_thrown", mcthrown[ii]->momentum().X(), ii);
-	dTreeFillData.Fill_Array<Double_t>("pY_thrown", mcthrown[ii]->momentum().Y(), ii);
-	dTreeFillData.Fill_Array<Double_t>("pZ_thrown", mcthrown[ii]->momentum().Z(), ii);
-	dTreeFillData.Fill_Array<Double_t>("E_thrown", mcthrown[ii]->energy(), ii);
-	dTreeFillData.Fill_Array<Int_t>("pdgtype_thrown", mcthrown[ii]->pdgtype, ii);
-	dTreeFillData.Fill_Array<Int_t>("myid_thrown", mcthrown[ii]->myid, ii);
-	dTreeFillData.Fill_Array<Int_t>("parentid_thrown", mcthrown[ii]->parentid, ii);
-      }
-  }
   
   fcal_ncl    = 0;
   fcal_en_cl  = 0;
@@ -232,23 +215,43 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   
   Int_t nHyp = hypothesisList.size();
   
-  dTreeFillData.Fill_Single<Int_t>("nPhotonCandidates", beam_ph.size());
-  
-  if(beam_ph.size() > 0)
-    {
-      
-      for(unsigned int ii = 0; ii < beam_ph.size(); ii++)
-	{
-	  dTreeFillData.Fill_Array<Double_t>("beamEnergy", beam_ph[ii]->momentum().Mag(), ii);
-	  dTreeFillData.Fill_Array<Double_t>("beamT", beam_ph[ii]->time(), ii);
-	}
-      
-    }
 
   if (nHyp != 1)
     return NOERROR;
       
   LockState(); //ACQUIRE PROCESSOR LOCK
+
+   dTreeFillData.Fill_Single<Int_t>("eventNumber", eventnumber);
+
+   if (mcthrown.size() > 0) {
+    dTreeFillData.Fill_Single<Int_t>("N_thrown", mcthrown.size());
+    dTreeFillData.Fill_Single<Int_t>("beamEnergy_thrown",reaction[0]->beam.energy());
+
+    for (unsigned int ii = 0; ii < mcthrown.size(); ii++)
+      {
+        dTreeFillData.Fill_Array<Int_t>("type_thrown", mcthrown[ii]->type, ii);
+        dTreeFillData.Fill_Array<Double_t>("pX_thrown", mcthrown[ii]->momentum().X(), ii);
+        dTreeFillData.Fill_Array<Double_t>("pY_thrown", mcthrown[ii]->momentum().Y(), ii);
+        dTreeFillData.Fill_Array<Double_t>("pZ_thrown", mcthrown[ii]->momentum().Z(), ii);
+        dTreeFillData.Fill_Array<Double_t>("E_thrown", mcthrown[ii]->energy(), ii);
+        dTreeFillData.Fill_Array<Int_t>("pdgtype_thrown", mcthrown[ii]->pdgtype, ii);
+        dTreeFillData.Fill_Array<Int_t>("myid_thrown", mcthrown[ii]->myid, ii);
+        dTreeFillData.Fill_Array<Int_t>("parentid_thrown", mcthrown[ii]->parentid, ii);
+      }
+  }
+
+  dTreeFillData.Fill_Single<Int_t>("nPhotonCandidates", beam_ph.size());
+
+  if(beam_ph.size() > 0)
+    {
+
+      for(unsigned int ii = 0; ii < beam_ph.size(); ii++)
+        {
+          dTreeFillData.Fill_Array<Double_t>("beamEnergy", beam_ph[ii]->momentum().Mag(), ii);
+          dTreeFillData.Fill_Array<Double_t>("beamT", beam_ph[ii]->time(), ii);
+        }
+
+    }
 
   map<Particle_t, vector<const DChargedTrackHypothesis*> > thisHyp = hypothesisList[0];
   const DChargedTrackHypothesis * hyp_pr = thisHyp[Proton][0];
@@ -312,7 +315,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("Beta_Timing_piminuscand",Beta_Timing_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("NDF_Timing_piminuscand",NDF_Timing_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_piminuscand",ChiSq_Timing_piminuscand);
-  dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_piminuscand",ChiSq_Timing_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_piminuscand",dEdx_TOF_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_piminuscand",dEdx_ST_piminuscand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_piminuscand",dEdx_CDC_piminuscand);
@@ -341,6 +343,7 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
 
   // Proton Candidate
   double FOM_protcand          = hyp_pr->Get_FOM();
+ // cout << FOM_protcand << endl;
   double NDF_protcand          = hyp_pr->Get_NDF();
   double ChiSq_protcand        = hyp_pr->Get_ChiSq();
   double prot_dedx_dc_NDF      = hyp_pr->Get_NDF_DCdEdx();
@@ -397,7 +400,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   dTreeFillData.Fill_Single<Double_t>("Beta_Timing_protcand",Beta_Timing_protcand);
   dTreeFillData.Fill_Single<Double_t>("NDF_Timing_protcand",NDF_Timing_protcand);
   dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_protcand",ChiSq_Timing_protcand);
-  dTreeFillData.Fill_Single<Double_t>("ChiSq_Timing_protcand",ChiSq_Timing_protcand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_TOF_protcand",dEdx_TOF_protcand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_ST_protcand",dEdx_ST_protcand);
   dTreeFillData.Fill_Single<Double_t>("dEdx_CDC_protcand",dEdx_CDC_protcand);
@@ -436,21 +438,12 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   FinalParticles.insert(myProton);
   FinalParticles.insert(myPiMinus);
   
-  /*shared_ptr<DKinFitParticle> myPhoton0 = dKinFitUtils->Make_DetectedShower(showers[1],Gamma);
-  shared_ptr<DKinFitParticle> myPhoton1 = dKinFitUtils->Make_DetectedShower(showers[1],Gamma);
-  FinalParticles.insert(myPhoton0);
-  FinalParticles.insert(myPhoton1);
-  FinalPhotons.insert(myPhoton0);
-  FinalPhotons.insert(myPhoton1);
   
-  shared_ptr<DKinFitParticle> myPion = dKinFitUtils->Make_DecayingParticle(Pi0,NoParticles,FinalPhotons);
-  */ 
+   
 // Set the vertex for th proton and pimus to the constrained
   shared_ptr<DKinFitConstraint_Vertex> locProductionVertexConstraint = dKinFitUtils->Make_VertexConstraint(FinalParticles,NoParticles,hyp_pr->Get_TrackTimeBased()->position());
   dKinFitter->Add_Constraint(locProductionVertexConstraint);
   
-  /*shared_ptr<DKinFitConstraint_Mass> pionMassConstraint = dKinFitUtils->Make_MassConstraint(myPion);
-  dKinFitter->Add_Constraint(pionMassConstraint);*/
   
   dKinFitter->Fit_Reaction();
   
@@ -468,9 +461,6 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
   
   shared_ptr<DKinFitParticle> fitProton = NULL;
   shared_ptr<DKinFitParticle> fitPiMinus = NULL;
-  /*shared_ptr<DKinFitParticle> fitPhoton0 = NULL;
-  shared_ptr<DKinFitParticle> fitPhoton1 = NULL;
-  */
   // Loop over particles
   set<shared_ptr<DKinFitParticle> >myParticles = dKinFitter->Get_KinFitParticles();
   set<shared_ptr<DKinFitParticle> >::iterator locParticleIterator=myParticles.begin();
@@ -520,7 +510,7 @@ jerror_t DEventProcessor_1p1pi::evnt(JEventLoop *loop, uint64_t eventnumber)
 
   //FILL TTREE
   dTreeInterface->Fill(dTreeFillData);
-  
+ 
   UnlockState(); //RELEASE PROCESSOR LOCK
 
   return NOERROR;
@@ -574,7 +564,7 @@ void DEventProcessor_1p1pi::GetHypotheses(vector<const DChargedTrack *> &tracks,
       
       double prob = TMath::Prob(hyp->Get_ChiSq(),hyp->Get_NDF());
       
-      if (prob <= 0)
+      if (prob <= 0.02) 
 	continue;
       
       map<Particle_t, vector<const DChargedTrackHypothesis*> > newHypothesis = assignmentHypothesis;
